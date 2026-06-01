@@ -34,13 +34,6 @@ void initGame() {
     gameState.players[1].hp = 100;
     gameState.players[1].active = true;
 
-    if (gameState.player_count == 3) {
-        gameState.players[2].x = 550; 
-        gameState.players[2].y = 300;
-        gameState.players[2].hp = 100;
-        gameState.players[2].active = true;
-    }
-
     // Serpent segmenté
     gameState.snake.length = 10;
 
@@ -82,30 +75,12 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
                     InvalidateRect(hwnd, NULL, TRUE);
                 }
                 else if (wParam == '2') {
-                    // SERVEUR - Jouer à 3 joueurs
-                    networkMode = 1;
-                    totalPlayers = 3;
-                    gameState.player_count = 3;
-                    gameState.local_id = 0;
-                    init_network(NETWORK_SERVER, NULL, 5555);
-                    printf("✓ Mode SERVEUR 3 JOUEURS - En attente de 2 clients...\n");
-                    InvalidateRect(hwnd, NULL, TRUE);
-                }
-                else if (wParam == '3') {
                     // CLIENT 1 (192.168.1.30)
                     char serverIP[50] = "192.168.1.10";
                     networkMode = 2;
                     gameState.local_id = 1;
-                    printf("✓ Mode CLIENT 1 - Connexion à %s:5555...\n", serverIP);
-                    init_network(NETWORK_CLIENT, serverIP, 5555);
-                    InvalidateRect(hwnd, NULL, TRUE);
-                }
-                else if (wParam == '4') {
-                    // CLIENT 2 (192.168.1.40)
-                    char serverIP[50] = "192.168.1.10";
-                    networkMode = 3;
-                    gameState.local_id = 2;
-                    printf("✓ Mode CLIENT 2 - Connexion à %s:5555...\n", serverIP);
+                    gameState.player_count = 2;
+                    printf("✓ Mode CLIENT - Connexion à %s:5555...\n", serverIP);
                     init_network(NETWORK_CLIENT, serverIP, 5555);
                     InvalidateRect(hwnd, NULL, TRUE);
                 }
@@ -254,34 +229,18 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
             if (networkMode == 0) {
                 // Menu de sélection serveur/client
                 TextOut(hdc, 20, 20, "=== CONFIGURATION RESEAU ===", 28);
-                TextOut(hdc, 20, 70, "[1] - SERVEUR 2 JOUEURS (vous + 1 client)", 42);
-                TextOut(hdc, 20, 110, "[2] - SERVEUR 3 JOUEURS (vous + 2 clients)", 43);
-                TextOut(hdc, 20, 160, "[3] - CLIENT 1 (192.168.1.30)", 29);
-                TextOut(hdc, 20, 200, "[4] - CLIENT 2 (192.168.1.40)", 29);
+                TextOut(hdc, 20, 70, "[1] - SERVEUR (vous contrôlez le joueur de gauche)", 50);
+                TextOut(hdc, 20, 120, "[2] - CLIENT (192.168.1.30 - vous contrôlez le joueur de droite)", 64);
             }
             else if (networkMode == 1) {
                 // Mode serveur
-                char status[100];
-                if (totalPlayers == 2) {
-                    sprintf(status, "=== SERVEUR 2 JOUEURS (192.168.1.10) ===");
-                    TextOut(hdc, 20, 20, status, strlen(status));
-                    TextOut(hdc, 20, 70, "En attente d'1 CLIENT...", 23);
-                } else {
-                    sprintf(status, "=== SERVEUR 3 JOUEURS (192.168.1.10) ===");
-                    TextOut(hdc, 20, 20, status, strlen(status));
-                    TextOut(hdc, 20, 70, "En attente de 2 CLIENTS...", 26);
-                }
+                TextOut(hdc, 20, 20, "=== SERVEUR (192.168.1.10) ===", 31);
+                TextOut(hdc, 20, 70, "En attente du CLIENT (192.168.1.30)...", 38);
                 TextOut(hdc, 20, 230, "[ENTREE] : Lancer la partie", 26);
             }
             else if (networkMode == 2) {
-                // Mode client 1
-                TextOut(hdc, 20, 20, "=== CLIENT 1 (192.168.1.30) ===", 32);
-                TextOut(hdc, 20, 70, "Connecté au serveur 192.168.1.10!", 34);
-                TextOut(hdc, 20, 230, "[ENTREE] : Lancer la partie", 26);
-            }
-            else if (networkMode == 3) {
-                // Mode client 2
-                TextOut(hdc, 20, 20, "=== CLIENT 2 (192.168.1.40) ===", 32);
+                // Mode client
+                TextOut(hdc, 20, 20, "=== CLIENT (192.168.1.30) ===", 29);
                 TextOut(hdc, 20, 70, "Connecté au serveur 192.168.1.10!", 34);
                 TextOut(hdc, 20, 230, "[ENTREE] : Lancer la partie", 26);
             }
