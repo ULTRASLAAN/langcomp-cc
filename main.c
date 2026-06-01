@@ -6,24 +6,9 @@
 #include "game.h"
 #include "network.h"
 
-#define MAX_SEGMENTS 500
-
-// ===== STRUCTURES =====
-
-typedef struct {
-    int x, y;
-} Segment;
-
-typedef struct {
-    Segment body[MAX_SEGMENTS];
-    int length;
-    int dx, dy;
-} Snake;
-
 // ===== VARIABLES =====
 
 GameState gameState;
-Snake snake;
 int gameStarted = 0;
 int networkMode = 0;  // 0=none, 1=server, 2=client1, 3=client2
 int totalPlayers = 2;  // 2 ou 3 joueurs
@@ -57,7 +42,7 @@ void initGame() {
     }
 
     // Serpent segmenté
-    snake.length = 10;
+    gameState.snake.length = 10;
 
     // Directions possibles (8 directions)
     int dirs[8][2] = {
@@ -66,12 +51,12 @@ void initGame() {
     };
 
     int r = rand() % 8;
-    snake.dx = dirs[r][0];
-    snake.dy = dirs[r][1];
+    gameState.snake.dx = dirs[r][0];
+    gameState.snake.dy = dirs[r][1];
 
-    for (int i = 0; i < snake.length; i++) {
-        snake.body[i].x = 400 - i * snake.dx;
-        snake.body[i].y = 200 - i * snake.dy;
+    for (int i = 0; i < gameState.snake.length; i++) {
+        gameState.snake.body[i].x = 400 - i * gameState.snake.dx;
+        gameState.snake.body[i].y = 200 - i * gameState.snake.dy;
     }
 }
 
@@ -156,41 +141,44 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
                     network_poll(NULL, &gameState, 0, 0, 0, 0, 0);
                 }
 
-                // Déplacement du serpent segmenté
-                for (int i = snake.length - 1; i > 0; i--) {
-                    snake.body[i] = snake.body[i - 1];
-                }
+                // SEUL LE SERVEUR met à jour le serpent
+                if (networkMode == 1 || networkMode == 0) {
+                    // Déplacement du serpent segmenté
+                    for (int i = gameState.snake.length - 1; i > 0; i--) {
+                        gameState.snake.body[i] = gameState.snake.body[i - 1];
+                    }
 
-                snake.body[0].x += snake.dx;
-                snake.body[0].y += snake.dy;
+                    gameState.snake.body[0].x += gameState.snake.dx;
+                    gameState.snake.body[0].y += gameState.snake.dy;
 
-                // Rebonds + croissance
-                if (snake.body[0].x < 50 || snake.body[0].x > 750) {
-                    snake.dx = -snake.dx;
-                    if (snake.length < MAX_SEGMENTS) snake.length++;
-                }
-                if (snake.body[0].y < 50 || snake.body[0].y > 550) {
-                    snake.dy = -snake.dy;
-                    if (snake.length < MAX_SEGMENTS) snake.length++;
-                }
+                    // Rebonds + croissance
+                    if (gameState.snake.body[0].x < 50 || gameState.snake.body[0].x > 750) {
+                        gameState.snake.dx = -gameState.snake.dx;
+                        if (gameState.snake.length < MAX_SNAKE_SEGMENTS) gameState.snake.length++;
+                    }
+                    if (gameState.snake.body[0].y < 50 || gameState.snake.body[0].y > 550) {
+                        gameState.snake.dy = -gameState.snake.dy;
+                        if (gameState.snake.length < MAX_SNAKE_SEGMENTS) gameState.snake.length++;
+                    }
 
-                // Changement aléatoire de direction (serpent vivant)
-                if (rand() % 40 == 0) {
-                    int dirs[8][2] = {
-                        {10, 0}, {-10, 0}, {0, 10}, {0, -10},
-                        {10, 10}, {10, -10}, {-10, 10}, {-10, -10}
-                    };
-                    int r = rand() % 8;
-                    snake.dx = dirs[r][0];
-                    snake.dy = dirs[r][1];
+                    // Changement aléatoire de direction (serpent vivant)
+                    if (rand() % 40 == 0) {
+                        int dirs[8][2] = {
+                            {10, 0}, {-10, 0}, {0, 10}, {0, -10},
+                            {10, 10}, {10, -10}, {-10, 10}, {-10, -10}
+                        };
+                        int r = rand() % 8;
+                        gameState.snake.dx = dirs[r][0];
+                        gameState.snake.dy = dirs[r][1];
+                    }
                 }
 
                 // Collision serpent → joueurs
                 for (int p = 0; p < gameState.player_count; p++) {
                     if (!gameState.players[p].active) continue;
 
-                    int dx = gameState.players[p].x - snake.body[0].x;
-                    int dy = gameState.players[p].y - snake.body[0].y;
+                    int dx = gameState.players[p].x - gameState.snake.body[0].x;
+                    int dy = gameState.players[p].y - gameState.snake.body[0].y;
                     int dist2 = dx*dx + dy*dy;
 
                     if (dist2 < 20*20) {
@@ -242,10 +230,10 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
                 HBRUSH sBrush = CreateSolidBrush(RGB(0, 255, 0));
                 oldBrush = SelectObject(hdc, sBrush);
 
-                for (int i = 0; i < snake.length; i++) {
+                for (int i = 0; i < gameState.snake.length; i++) {
                     Rectangle(hdc,
-                        snake.body[i].x - 5, snake.body[i].y - 5,
-                        snake.body[i].x + 5, snake.body[i].y + 5
+                        gameState.snake.body[i].x - 5, gameState.snake.body[i].y - 5,
+                        gameState.snake.body[i].x + 5, gameState.snake.body[i].y + 5
                     );
                 }
 

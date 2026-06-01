@@ -111,6 +111,9 @@ void network_poll(bool *quit, GameState *g, bool up, bool down, bool left, bool 
                 send(clientSockets[i], (char*)&g->players[j], sizeof(Player), 0);
             }
 
+            // Envoyer le serpent (synchronisé du serveur vers les clients)
+            send(clientSockets[i], (char*)&g->snake, sizeof(Snake), 0);
+
             // Recevoir du client i (joueur i)
             int recvBytes = recv(clientSockets[i], (char*)&g->players[i], sizeof(Player), 0);
             if (recvBytes == SOCKET_ERROR) {
@@ -134,8 +137,17 @@ void network_poll(bool *quit, GameState *g, bool up, bool down, bool left, bool 
             if (recvBytes == SOCKET_ERROR) {
                 int err = WSAGetLastError();
                 if (err != WSAEWOULDBLOCK) {
-                    printf("Erreur recv: %d\n", err);
+                    printf("Erreur recv joueur: %d\n", err);
                 }
+            }
+        }
+
+        // Recevoir le serpent synchronisé du serveur
+        int recvBytes = recv(clientSockets[0], (char*)&g->snake, sizeof(Snake), 0);
+        if (recvBytes == SOCKET_ERROR) {
+            int err = WSAGetLastError();
+            if (err != WSAEWOULDBLOCK) {
+                printf("Erreur recv serpent: %d\n", err);
             }
         }
     }
