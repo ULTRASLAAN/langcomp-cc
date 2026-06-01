@@ -253,8 +253,6 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
                 SetTextColor(hdcBuffer, RGB(255, 200, 0));
                 SetBkMode(hdcBuffer, TRANSPARENT);
                 TextOut(hdcBuffer, 65, 65, ">> FUIS LE SERPENT ! <<", 23);
-
-                EndPaint(hwnd, &ps);
             }
             else {
                 // ===== LOBBY =====
@@ -282,8 +280,6 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
                     TextOut(hdcBuffer, 30, 100, "Connecté au serveur!", 20);
                     TextOut(hdcBuffer, 30, 300, "[ENTREE] : Lancer la partie", 26);
                 }
-
-                EndPaint(hwnd, &ps);
             }
 
             // Copier le buffer vers l'écran réel
@@ -293,6 +289,8 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
             SelectObject(hdcBuffer, hbmOld);
             DeleteObject(hbmBuffer);
             DeleteDC(hdcBuffer);
+
+            EndPaint(hwnd, &ps);
 
             return 0;
         }
