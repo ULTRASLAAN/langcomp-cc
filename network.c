@@ -40,7 +40,7 @@ bool init_network(int r, const char *host, int port) {
         }
 
         listenSocket = mainSocket;
-        printf("Serveur en attente sur port %d (2 clients max)...\n", port);
+        printf("Serveur en attente sur port %d...\n", port);
         connectedClients = 0;
 
         // Rendre la socket non-bloquante
@@ -83,10 +83,13 @@ void network_poll(bool *quit, GameState *g, bool up, bool down, bool left, bool 
         int addrLen = sizeof(addr);
         SOCKET clientSocket = accept(listenSocket, (struct sockaddr*)&addr, &addrLen);
 
-        if (clientSocket != INVALID_SOCKET && connectedClients < 2) {
+        // Calcul du nombre de clients attendus (total joueurs - 1 pour le serveur)
+        int expectedClients = g->player_count - 1;
+
+        if (clientSocket != INVALID_SOCKET && connectedClients < expectedClients) {
             clientSockets[1 + connectedClients] = clientSocket;
             connectedClients++;
-            printf("Client connecté! (%d/2)\n", connectedClients);
+            printf("Client connecté! (%d/%d)\n", connectedClients, expectedClients);
             
             // Rendre la socket non-bloquante
             u_long mode = 1;
@@ -96,10 +99,11 @@ void network_poll(bool *quit, GameState *g, bool up, bool down, bool left, bool 
 
     // Serveur envoie et reçoit pour tous les joueurs
     if (role == NETWORK_SERVER) {
-        if (connectedClients < 2) return;  // Attendre les 2 clients
+        int expectedClients = g->player_count - 1;
+        if (connectedClients < expectedClients) return;  // Attendre tous les clients
 
-        // Envoyer ses données + recevoir
-        for (int i = 1; i <= 2; i++) {
+        // Envoyer et recevoir pour chaque client
+        for (int i = 1; i < g->player_count; i++) {
             if (clientSockets[i] == INVALID_SOCKET) continue;
 
             // Envoyer tous les joueurs
