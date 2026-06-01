@@ -89,7 +89,7 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
                 }
                 else if (wParam == '2') {
                     // CLIENT - Utilise l'IP du serveur
-                    char serverIP[50] = "192.168.1.1";  // À ADAPTER avec votre IP
+                    char serverIP[50] = "192.168.1.10";  // À ADAPTER avec votre IP
                     networkMode = 2;
                     gameState.local_id = 1;  // Client = joueur 1
                     printf("Mode CLIENT - Connexion à %s:5555...\n", serverIP);
