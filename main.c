@@ -169,84 +169,133 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
             PAINTSTRUCT ps;
             HDC hdc = BeginPaint(hwnd, &ps);
 
+            // DOUBLE BUFFERING - Créer un buffer pour éviter le scintillement
+            HDC hdcBuffer = CreateCompatibleDC(hdc);
+            HBITMAP hbmBuffer = CreateCompatibleBitmap(hdc, 800, 600);
+            HBITMAP hbmOld = SelectObject(hdcBuffer, hbmBuffer);
+
             // ===== ÉCRAN DE JEU =====
             if (gameStarted) {
-
-                // Fond noir
-                HBRUSH fondJeu = CreateSolidBrush(RGB(10, 10, 10));
-                FillRect(hdc, &ps.rcPaint, fondJeu);
+                // Fond dégradé bleu foncé
+                HBRUSH fondJeu = CreateSolidBrush(RGB(15, 25, 50));
+                RECT rcFull = {0, 0, 800, 600};
+                FillRect(hdcBuffer, &rcFull, fondJeu);
                 DeleteObject(fondJeu);
 
-                // MAP
-                HPEN pen = CreatePen(PS_SOLID, 4, RGB(255, 255, 255));
-                HGDIOBJ oldPen = SelectObject(hdc, pen);
-                Rectangle(hdc, 50, 50, 750, 550);
-                SelectObject(hdc, oldPen);
-                DeleteObject(pen);
+                // MAP avec bordure épaisse et ombre
+                HPEN penOmbre = CreatePen(PS_SOLID, 4, RGB(0, 0, 0));
+                SelectObject(hdcBuffer, penOmbre);
+                Rectangle(hdcBuffer, 52, 52, 752, 552);
+                DeleteObject(penOmbre);
 
-                // Joueurs
-                HBRUSH pBrush = CreateSolidBrush(RGB(0, 200, 255));
-                HGDIOBJ oldBrush = SelectObject(hdc, pBrush);
+                HPEN penBord = CreatePen(PS_SOLID, 4, RGB(100, 200, 255));
+                SelectObject(hdcBuffer, penBord);
+                Rectangle(hdcBuffer, 50, 50, 750, 550);
+                DeleteObject(penBord);
 
+                // Joueurs avec gradient de couleur
                 for (int i = 0; i < gameState.player_count; i++) {
                     if (gameState.players[i].active) {
-                        Rectangle(hdc,
-                            gameState.players[i].x - 10, gameState.players[i].y - 10,
-                            gameState.players[i].x + 10, gameState.players[i].y + 10
+                        // Couleurs différentes par joueur
+                        int r = (i == 0) ? 50 : 255;
+                        int g = 200;
+                        int b = (i == 0) ? 255 : 50;
+                        
+                        HBRUSH pBrush = CreateSolidBrush(RGB(r, g, b));
+                        SelectObject(hdcBuffer, pBrush);
+                        
+                        // Cercle approximé avec Rectangle arrondi
+                        Ellipse(hdcBuffer,
+                            gameState.players[i].x - 12, gameState.players[i].y - 12,
+                            gameState.players[i].x + 12, gameState.players[i].y + 12
                         );
+                        
+                        // Bordure plus claire
+                        HPEN pPen = CreatePen(PS_SOLID, 2, RGB(255, 255, 255));
+                        SelectObject(hdcBuffer, pPen);
+                        Ellipse(hdcBuffer,
+                            gameState.players[i].x - 12, gameState.players[i].y - 12,
+                            gameState.players[i].x + 12, gameState.players[i].y + 12
+                        );
+                        
+                        DeleteObject(pBrush);
+                        DeleteObject(pPen);
                     }
                 }
 
-                SelectObject(hdc, oldBrush);
-                DeleteObject(pBrush);
-
-                // Serpent segmenté
-                HBRUSH sBrush = CreateSolidBrush(RGB(0, 255, 0));
-                oldBrush = SelectObject(hdc, sBrush);
-
+                // Serpent vert éclatant avec effet
                 for (int i = 0; i < gameState.snake.length; i++) {
-                    Rectangle(hdc,
-                        gameState.snake.body[i].x - 5, gameState.snake.body[i].y - 5,
-                        gameState.snake.body[i].x + 5, gameState.snake.body[i].y + 5
+                    // Gradient de couleur : tête plus claire, queue plus foncée
+                    int greenVal = 180 + (i * 75 / gameState.snake.length);
+                    if (greenVal > 255) greenVal = 255;
+                    
+                    HBRUSH sBrush = CreateSolidBrush(RGB(0, greenVal, 50));
+                    SelectObject(hdcBuffer, sBrush);
+                    
+                    Ellipse(hdcBuffer,
+                        gameState.snake.body[i].x - 6, gameState.snake.body[i].y - 6,
+                        gameState.snake.body[i].x + 6, gameState.snake.body[i].y + 6
                     );
+                    
+                    // Bordure pour effet 3D
+                    HPEN sPen = CreatePen(PS_SOLID, 1, RGB(100, 255, 100));
+                    SelectObject(hdcBuffer, sPen);
+                    Ellipse(hdcBuffer,
+                        gameState.snake.body[i].x - 6, gameState.snake.body[i].y - 6,
+                        gameState.snake.body[i].x + 6, gameState.snake.body[i].y + 6
+                    );
+                    
+                    DeleteObject(sBrush);
+                    DeleteObject(sPen);
                 }
 
-                SelectObject(hdc, oldBrush);
-                DeleteObject(sBrush);
-
-                TextOut(hdc, 60, 60, "FUIS LE SERPENT QUI GRANDIT !", 30);
+                // Texte avec fond semi-transparent
+                SetTextColor(hdcBuffer, RGB(255, 200, 0));
+                SetBkMode(hdcBuffer, TRANSPARENT);
+                TextOut(hdcBuffer, 65, 65, ">> FUIS LE SERPENT ! <<", 23);
 
                 EndPaint(hwnd, &ps);
-                return 0;
+            }
+            else {
+                // ===== LOBBY =====
+                HBRUSH fond = CreateSolidBrush(RGB(20, 100, 180));
+                RECT rcFull = {0, 0, 800, 600};
+                FillRect(hdcBuffer, &rcFull, fond);
+                DeleteObject(fond);
+
+                SetTextColor(hdcBuffer, RGB(255, 255, 255));
+                SetBkMode(hdcBuffer, TRANSPARENT);
+
+                if (networkMode == 0) {
+                    // Menu de sélection
+                    TextOut(hdcBuffer, 30, 30, "=== CONFIGURATION RESEAU ===", 28);
+                    TextOut(hdcBuffer, 30, 100, "[1] - SERVEUR (192.168.1.10)", 28);
+                    TextOut(hdcBuffer, 30, 150, "[2] - CLIENT (192.168.1.30)", 27);
+                }
+                else if (networkMode == 1) {
+                    TextOut(hdcBuffer, 30, 30, "=== SERVEUR (192.168.1.10) ===", 31);
+                    TextOut(hdcBuffer, 30, 100, "En attente du CLIENT...", 22);
+                    TextOut(hdcBuffer, 30, 300, "[ENTREE] : Lancer la partie", 26);
+                }
+                else if (networkMode == 2) {
+                    TextOut(hdcBuffer, 30, 30, "=== CLIENT (192.168.1.30) ===", 29);
+                    TextOut(hdcBuffer, 30, 100, "Connecté au serveur!", 20);
+                    TextOut(hdcBuffer, 30, 300, "[ENTREE] : Lancer la partie", 26);
+                }
+
+                EndPaint(hwnd, &ps);
             }
 
-            // ===== LOBBY =====
-            HBRUSH fond = CreateSolidBrush(RGB(30, 144, 255));
-            FillRect(hdc, &ps.rcPaint, fond);
-            DeleteObject(fond);
+            // Copier le buffer vers l'écran réel
+            BitBlt(hdc, 0, 0, 800, 600, hdcBuffer, 0, 0, SRCCOPY);
 
-            if (networkMode == 0) {
-                // Menu de sélection serveur/client
-                TextOut(hdc, 20, 20, "=== CONFIGURATION RESEAU ===", 28);
-                TextOut(hdc, 20, 70, "[1] - SERVEUR (vous contrôlez le joueur de gauche)", 50);
-                TextOut(hdc, 20, 120, "[2] - CLIENT (192.168.1.30 - vous contrôlez le joueur de droite)", 64);
-            }
-            else if (networkMode == 1) {
-                // Mode serveur
-                TextOut(hdc, 20, 20, "=== SERVEUR (192.168.1.10) ===", 31);
-                TextOut(hdc, 20, 70, "En attente du CLIENT (192.168.1.30)...", 38);
-                TextOut(hdc, 20, 230, "[ENTREE] : Lancer la partie", 26);
-            }
-            else if (networkMode == 2) {
-                // Mode client
-                TextOut(hdc, 20, 20, "=== CLIENT (192.168.1.30) ===", 29);
-                TextOut(hdc, 20, 70, "Connecté au serveur 192.168.1.10!", 34);
-                TextOut(hdc, 20, 230, "[ENTREE] : Lancer la partie", 26);
-            }
+            // Nettoyer le buffer
+            SelectObject(hdcBuffer, hbmOld);
+            DeleteObject(hbmBuffer);
+            DeleteDC(hdcBuffer);
 
-            EndPaint(hwnd, &ps);
+            return 0;
         }
-        return 0;
 
         case WM_DESTROY:
             if (networkMode) shutdown_network();
