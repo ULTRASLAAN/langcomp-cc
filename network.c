@@ -146,9 +146,11 @@ void network_poll(bool *quit, GameState *g, bool up, bool down, bool left, bool 
         if (recvBytes == totalSize) {
             int offset = 0;
             
-            // Décoder les joueurs
+            // Décoder les joueurs (SAUF le joueur local)
             for (int j = 0; j < g->player_count; j++) {
-                memcpy(&g->players[j], buffer + offset, sizeof(Player));
+                if (j != g->local_id) {  // Ne pas écraser sa propre position
+                    memcpy(&g->players[j], buffer + offset, sizeof(Player));
+                }
                 offset += sizeof(Player);
             }
             

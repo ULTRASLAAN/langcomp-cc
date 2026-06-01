@@ -102,7 +102,6 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
                     case 'Q': gameState.players[pid].x -= 10; break;
                     case 'D': gameState.players[pid].x += 10; break;
                 }
-                InvalidateRect(hwnd, NULL, TRUE);
             }
 
             return 0;
