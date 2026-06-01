@@ -4,8 +4,8 @@
 
 static int role;
 static SOCKET listenSocket = INVALID_SOCKET;
-static SOCKET sock = INVALID_SOCKET;
-static int connected = 0;
+static SOCKET clientSockets[3] = {INVALID_SOCKET, INVALID_SOCKET, INVALID_SOCKET};
+static int connectedClients = 0;
 
 bool init_network(int r, const char *host, int port) {
     role = r;
@@ -17,103 +17,134 @@ bool init_network(int r, const char *host, int port) {
         return false;
     }
 
-    sock = socket(AF_INET, SOCK_STREAM, 0);
-    if (sock == INVALID_SOCKET) {
-        printf("Création socket échouée: %ld\n", WSAGetLastError());
-        return false;
-    }
-
     if (role == NETWORK_SERVER) {
+        SOCKET mainSocket = socket(AF_INET, SOCK_STREAM, 0);
+        if (mainSocket == INVALID_SOCKET) {
+            printf("Création socket échouée: %ld\n", WSAGetLastError());
+            return false;
+        }
+
         struct sockaddr_in addr = {0};
         addr.sin_family = AF_INET;
         addr.sin_port = htons(port);
         addr.sin_addr.s_addr = INADDR_ANY;
 
-        if (bind(sock, (struct sockaddr*)&addr, sizeof(addr)) == SOCKET_ERROR) {
+        if (bind(mainSocket, (struct sockaddr*)&addr, sizeof(addr)) == SOCKET_ERROR) {
             printf("Bind échoué: %ld\n", WSAGetLastError());
             return false;
         }
 
-        if (listen(sock, 1) == SOCKET_ERROR) {
+        if (listen(mainSocket, 2) == SOCKET_ERROR) {
             printf("Listen échoué: %ld\n", WSAGetLastError());
             return false;
         }
 
-        listenSocket = sock;
-        printf("Serveur en attente sur port %d...\n", port);
-        connected = 0;
+        listenSocket = mainSocket;
+        printf("Serveur en attente sur port %d (2 clients max)...\n", port);
+        connectedClients = 0;
+
+        // Rendre la socket non-bloquante
+        u_long mode = 1;
+        ioctlsocket(listenSocket, FIONBIO, &mode);
     }
     else {
         // Mode client
+        SOCKET clientSocket = socket(AF_INET, SOCK_STREAM, 0);
+        if (clientSocket == INVALID_SOCKET) {
+            printf("Création socket échouée: %ld\n", WSAGetLastError());
+            return false;
+        }
+
         struct sockaddr_in addr = {0};
         addr.sin_family = AF_INET;
         addr.sin_port = htons(port);
         addr.sin_addr.s_addr = inet_addr(host);
 
-        if (connect(sock, (struct sockaddr*)&addr, sizeof(addr)) == SOCKET_ERROR) {
+        if (connect(clientSocket, (struct sockaddr*)&addr, sizeof(addr)) == SOCKET_ERROR) {
             printf("Connexion échouée: %ld\n", WSAGetLastError());
             return false;
         }
 
+        clientSockets[0] = clientSocket;
         printf("Connecté au serveur %s:%d\n", host, port);
-        connected = 1;
-    }
 
-    // Rendre la socket non-bloquante
-    u_long mode = 1;
-    ioctlsocket(sock, FIONBIO, &mode);
+        // Rendre la socket non-bloquante
+        u_long mode = 1;
+        ioctlsocket(clientSocket, FIONBIO, &mode);
+    }
 
     return true;
 }
 
 void network_poll(bool *quit, GameState *g, bool up, bool down, bool left, bool right, bool shoot) {
     // Mode serveur : accepter les connexions
-    if (role == NETWORK_SERVER && !connected && listenSocket != INVALID_SOCKET) {
+    if (role == NETWORK_SERVER && listenSocket != INVALID_SOCKET) {
         struct sockaddr_in addr;
         int addrLen = sizeof(addr);
         SOCKET clientSocket = accept(listenSocket, (struct sockaddr*)&addr, &addrLen);
 
-        if (clientSocket != INVALID_SOCKET) {
-            sock = clientSocket;
-            connected = 1;
-            printf("Client connecté!\n");
+        if (clientSocket != INVALID_SOCKET && connectedClients < 2) {
+            clientSockets[1 + connectedClients] = clientSocket;
+            connectedClients++;
+            printf("Client connecté! (%d/2)\n", connectedClients);
             
             // Rendre la socket non-bloquante
             u_long mode = 1;
-            ioctlsocket(sock, FIONBIO, &mode);
+            ioctlsocket(clientSocket, FIONBIO, &mode);
         }
     }
 
-    if (!connected) return;
+    // Serveur envoie et reçoit pour tous les joueurs
+    if (role == NETWORK_SERVER) {
+        if (connectedClients < 2) return;  // Attendre les 2 clients
 
-    // Envoyer l'état du joueur local
-    if (send(sock, (char*)&g->players[g->local_id], sizeof(Player), 0) == SOCKET_ERROR) {
-        int err = WSAGetLastError();
-        if (err != WSAEWOULDBLOCK) {
-            printf("Erreur send: %d\n", err);
+        // Envoyer ses données + recevoir
+        for (int i = 1; i <= 2; i++) {
+            if (clientSockets[i] == INVALID_SOCKET) continue;
+
+            // Envoyer tous les joueurs
+            for (int j = 0; j < g->player_count; j++) {
+                send(clientSockets[i], (char*)&g->players[j], sizeof(Player), 0);
+            }
+
+            // Recevoir du client i (joueur i)
+            int recvBytes = recv(clientSockets[i], (char*)&g->players[i], sizeof(Player), 0);
+            if (recvBytes == SOCKET_ERROR) {
+                int err = WSAGetLastError();
+                if (err != WSAEWOULDBLOCK) {
+                    printf("Erreur recv client %d: %d\n", i, err);
+                }
+            }
         }
     }
+    else {
+        // Mode client
+        if (clientSockets[0] == INVALID_SOCKET) return;
 
-    // Recevoir l'état des autres joueurs
-    for (int i = 0; i < g->player_count; i++) {
-        if (i == g->local_id) continue;  // Ne pas recevoir pour soi-même
+        // Envoyer sa position
+        send(clientSockets[0], (char*)&g->players[g->local_id], sizeof(Player), 0);
 
-        int recvBytes = recv(sock, (char*)&g->players[i], sizeof(Player), 0);
-        if (recvBytes == SOCKET_ERROR) {
-            int err = WSAGetLastError();
-            if (err != WSAEWOULDBLOCK) {
-                printf("Erreur recv: %d\n", err);
+        // Recevoir l'état de tous les joueurs
+        for (int i = 0; i < g->player_count; i++) {
+            int recvBytes = recv(clientSockets[0], (char*)&g->players[i], sizeof(Player), 0);
+            if (recvBytes == SOCKET_ERROR) {
+                int err = WSAGetLastError();
+                if (err != WSAEWOULDBLOCK) {
+                    printf("Erreur recv: %d\n", err);
+                }
             }
         }
     }
 }
 
 void shutdown_network() {
-    if (sock != INVALID_SOCKET) {
-        closesocket(sock);
-    }
     if (listenSocket != INVALID_SOCKET) {
         closesocket(listenSocket);
+    }
+    for (int i = 0; i < 3; i++) {
+        if (clientSockets[i] != INVALID_SOCKET) {
+            closesocket(clientSockets[i]);
+        }
     }
     WSACleanup();
 }
