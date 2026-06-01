@@ -2,6 +2,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <time.h>
+#include <stdio.h>
 #include "game.h"
 #include "network.h"
 
@@ -76,23 +77,42 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
         // ===== TOUCHES =====
         case WM_KEYDOWN:
 
-            // LOBBY - Appuyer ENTRÉE pour lancer le jeu
-            if (!gameStarted && wParam == VK_RETURN) {
+            // LOBBY - Touches pour choisir serveur/client
+            if (!gameStarted && !networkMode) {
+                if (wParam == '1') {
+                    // SERVEUR
+                    networkMode = 1;
+                    gameState.local_id = 0;  // Serveur = joueur 0
+                    init_network(NETWORK_SERVER, NULL, 5555);
+                    printf("Mode SERVEUR activé - En attente du client...\n");
+                    InvalidateRect(hwnd, NULL, TRUE);
+                }
+                else if (wParam == '2') {
+                    // CLIENT - Utilise l'IP du serveur
+                    char serverIP[50] = "192.168.1.1";  // À ADAPTER avec votre IP
+                    networkMode = 2;
+                    gameState.local_id = 1;  // Client = joueur 1
+                    printf("Mode CLIENT - Connexion à %s:5555...\n", serverIP);
+                    init_network(NETWORK_CLIENT, serverIP, 5555);
+                    InvalidateRect(hwnd, NULL, TRUE);
+                }
+            }
+
+            // Lancer le jeu quand connecté
+            if (networkMode && !gameStarted && wParam == VK_RETURN) {
                 gameStarted = 1;
                 initGame();
-                // Initialiser le réseau en serveur
-                networkMode = 1;
-                init_network(NETWORK_SERVER, NULL, 5555);
                 InvalidateRect(hwnd, NULL, TRUE);
             }
 
             // JEU : joueur local (ZQSD)
             if (gameStarted) {
+                int pid = gameState.local_id;  // ID du joueur local
                 switch (wParam) {
-                    case 'Z': gameState.players[0].y -= 10; break;
-                    case 'S': gameState.players[0].y += 10; break;
-                    case 'Q': gameState.players[0].x -= 10; break;
-                    case 'D': gameState.players[0].x += 10; break;
+                    case 'Z': gameState.players[pid].y -= 10; break;
+                    case 'S': gameState.players[pid].y += 10; break;
+                    case 'Q': gameState.players[pid].x -= 10; break;
+                    case 'D': gameState.players[pid].x += 10; break;
                 }
                 InvalidateRect(hwnd, NULL, TRUE);
             }
@@ -215,10 +235,25 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
             FillRect(hdc, &ps.rcPaint, fond);
             DeleteObject(fond);
 
-            TextOut(hdc, 20, 20, "=== LOBBY ===", 13);
-            TextOut(hdc, 20, 60, "Joueur 1 (vous) : Prêt", 22);
-            TextOut(hdc, 20, 90, "Joueur 2 (en attente de connexion...)", 36);
-            TextOut(hdc, 20, 200, "[ENTRÉE] : Lancer la partie (serveur)", 36);
+            if (networkMode == 0) {
+                // Menu de sélection serveur/client
+                TextOut(hdc, 20, 20, "=== CONFIGURATION RESEAU ===", 28);
+                TextOut(hdc, 20, 70, "[1] - Etre SERVEUR (ce PC attend le client)", 43);
+                TextOut(hdc, 20, 110, "[2] - Etre CLIENT (se connecter au serveur)", 43);
+            }
+            else if (networkMode == 1) {
+                // Mode serveur
+                TextOut(hdc, 20, 20, "=== MODE SERVEUR ===", 20);
+                TextOut(hdc, 20, 70, "En attente du client sur le port 5555...", 39);
+                TextOut(hdc, 20, 110, "Donnez votre IP a l'autre joueur", 32);
+                TextOut(hdc, 20, 200, "[ENTREE] : Lancer la partie", 26);
+            }
+            else if (networkMode == 2) {
+                // Mode client
+                TextOut(hdc, 20, 20, "=== MODE CLIENT ===", 19);
+                TextOut(hdc, 20, 70, "Connecte au serveur!", 20);
+                TextOut(hdc, 20, 200, "[ENTREE] : Lancer la partie", 26);
+            }
 
             EndPaint(hwnd, &ps);
         }
