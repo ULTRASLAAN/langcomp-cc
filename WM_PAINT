@@ -1,0 +1,76 @@
+case WM_PAINT: {
+    PAINTSTRUCT ps;
+    HDC hdc = BeginPaint(hwnd, &ps);
+
+    // ====== ÉCRAN DE JEU ======
+    if (gameStarted) {
+
+        // Fond noir
+        HBRUSH fondJeu = CreateSolidBrush(RGB(10, 10, 10));
+        FillRect(hdc, &ps.rcPaint, fondJeu);
+        DeleteObject(fondJeu);
+
+        // MAP (rectangle blanc)
+        HPEN pen = CreatePen(PS_SOLID, 4, RGB(255, 255, 255));
+        HGDIOBJ oldPen = SelectObject(hdc, pen);
+        Rectangle(hdc, 50, 50, 750, 550);
+        SelectObject(hdc, oldPen);
+        DeleteObject(pen);
+
+        // Joueurs (bleu clair)
+        HBRUSH pBrush = CreateSolidBrush(RGB(0, 200, 255));
+        HGDIOBJ oldBrush = SelectObject(hdc, pBrush);
+
+        for (int i = 0; i < 3; i++) {
+            if (players[i].alive) {
+                Rectangle(hdc,
+                    players[i].x - 10, players[i].y - 10,
+                    players[i].x + 10, players[i].y + 10
+                );
+            }
+        }
+
+        SelectObject(hdc, oldBrush);
+        DeleteObject(pBrush);
+
+        // Serpent BOT (vert)
+        HBRUSH sBrush = CreateSolidBrush(RGB(0, 255, 0));
+        oldBrush = SelectObject(hdc, sBrush);
+
+        Rectangle(hdc,
+            snake.x - snake.size, snake.y - snake.size,
+            snake.x + snake.size, snake.y + snake.size
+        );
+
+        SelectObject(hdc, oldBrush);
+        DeleteObject(sBrush);
+
+        // Texte
+        TextOut(hdc, 60, 60, "FUIS LE SERPENT BOT !", 22);
+
+        EndPaint(hwnd, &ps);
+        return 0;
+    }
+
+    // ====== ÉCRAN LOBBY ======
+
+    HBRUSH fond = CreateSolidBrush(RGB(30, 144, 255));
+    FillRect(hdc, &ps.rcPaint, fond);
+    DeleteObject(fond);
+
+    TextOut(hdc, 20, 20, "=== LOBBY ===", 13);
+
+    for (int i = 0; i < playerCount; i++) {
+        char line[64];
+        sprintf(line, "%s   [%s]",
+                playersLobby[i].name,
+                playersLobby[i].ready ? "PRÊT" : "PAS PRÊT");
+        TextOut(hdc, 20, 60 + i * 30, line, strlen(line));
+    }
+
+    TextOut(hdc, 20, 200, "[ESPACE] : Prêt / Pas prêt (J1)", 32);
+    TextOut(hdc, 20, 230, "[ENTRÉE] : Lancer la partie", 30);
+
+    EndPaint(hwnd, &ps);
+}
+return 0;
