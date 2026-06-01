@@ -1,0 +1,131 @@
+╔════════════════════════════════════════════════════════════════╗
+║         GUIDE DE LANCEMENT - JEU MULTIJOUEUR EN RÉSEAU         ║
+║                   Fuis le Serpent Multidirectionnel             ║
+╚════════════════════════════════════════════════════════════════╝
+
+📋 ARCHITECTURE
+═══════════════════════════════════════════════════════════════════
+Ce PC (SERVEUR)      ←→  Autre PC (CLIENT)
+  jeu_serveur.exe          jeu_client.exe
+  Branche Ethernet
+
+
+🔧 ÉTAPE 1 - TROUVER L'ADRESSE IP DU SERVEUR
+═══════════════════════════════════════════════════════════════════
+
+Sur CE PC (serveur), ouvrez un terminal et lancez :
+   ipconfig
+
+Cherchez "Adresse IPv4" sur votre connexion Ethernet.
+Exemple : 192.168.1.1 ou 10.92.0.97
+
+📝 NOTE : Notez l'adresse IP trouvée (ex: 192.168.X.X)
+
+
+🎮 ÉTAPE 2 - LANCER LE SERVEUR
+═══════════════════════════════════════════════════════════════════
+
+Sur CE PC, lancez :
+   jeu_serveur.exe
+
+Une fenêtre "Jeu Serpent - SERVEUR" apparaîtra avec :
+   ✓ Lobby avec "Joueur 1 (vous) : Prêt"
+   ✓ Message "En attente de connexion..."
+
+⏳ Le serveur ATTEND le client (le reste du jeu en attente)
+
+
+🖥️ ÉTAPE 3 - PRÉPARER LE CLIENT SUR L'AUTRE PC
+═══════════════════════════════════════════════════════════════════
+
+Copiez le fichier "jeu_client.exe" sur l'autre PC.
+
+IMPORTANT : Modifiez le code client si l'IP change
+   Fichier : main_client.c
+   Ligne 24 : char serverIP[50] = "192.168.X.X";  ← Mettez l'IP du serveur
+   
+   Puis recompiler :
+   gcc -o jeu_client.exe main_client.c game.c network.c -lws2_32 -lgdi32 -I.
+
+
+⚙️ ÉTAPE 4 - LANCER LE CLIENT
+═══════════════════════════════════════════════════════════════════
+
+Sur L'AUTRE PC, lancez :
+   jeu_client.exe
+
+Une fenêtre "Jeu Serpent - CLIENT" apparaîtra avec :
+   ✓ Serveur: 192.168.X.X:5555
+   ✓ Prêt à se connecter
+
+
+▶️ ÉTAPE 5 - DÉMARRER LA PARTIE
+═══════════════════════════════════════════════════════════════════
+
+CLIENT : Appuyez sur [ENTRÉE]
+   → Se connecte au serveur
+   → Le serveur accepte la connexion
+   → La partie démarre sur les deux PCs
+
+SERVEUR : Appuyez sur [ENTRÉE]  
+   → Lance le jeu serveur
+
+
+🎯 COMMANDES DE JEU
+═══════════════════════════════════════════════════════════════════
+
+Joueur 1 (SERVEUR) :
+   Z - Haut
+   S - Bas
+   Q - Gauche
+   D - Droite
+
+Joueur 2 (CLIENT) :
+   Z - Haut
+   S - Bas
+   Q - Gauche
+   D - Droite
+
+OBJECTIF :
+   ✓ Fuyez le serpent vert qui grandit
+   ✓ Restez dans la zone délimitée
+   ✓ Évitez le serpent le plus longtemps possible
+
+
+🔌 VÉRIFICATION DE CONNEXION RÉSEAU
+═══════════════════════════════════════════════════════════════════
+
+Si la connexion ne fonctionne pas :
+
+1. Vérifiez que les deux PCs sont connectés via Ethernet
+2. Vérifiez l'IP correcte dans main_client.c
+3. Recompilez le client avec la bonne IP
+4. Vérifiez que le serveur est lancé EN PREMIER
+5. Vérifiez qu'aucun firewall ne bloque le port 5555
+
+Pour tester la connexion (sur le client) :
+   ping 192.168.X.X  (remplacez par l'IP du serveur)
+
+
+📊 FLUX DE SYNCHRONISATION
+═══════════════════════════════════════════════════════════════════
+
+Le jeu synchronise les positions des joueurs :
+   - Chaque joueur contrôle son propre personnage
+   - Ses mouvements sont envoyés au réseau
+   - Le serpent est identique sur les deux écrans
+   - La collision est gérée serveur
+
+
+✅ VÉRIFICATION FINALE
+═══════════════════════════════════════════════════════════════════
+
+Avant de jouer :
+   ✓ Deux PCs connectés par Ethernet
+   ✓ Adresse IP correcte du serveur
+   ✓ jeu_serveur.exe lancé en premier
+   ✓ jeu_client.exe lancé deuxième
+   ✓ Aucun firewall bloquant
+
+
+Bon jeu ! 🎮🐍

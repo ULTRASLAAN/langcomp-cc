@@ -2,6 +2,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <time.h>
+#include <stdio.h>
 #include "game.h"
 #include "network.h"
 
@@ -24,13 +25,8 @@ typedef struct {
 GameState gameState;
 Snake snake;
 int gameStarted = 0;
-int networkMode = 0;  // 0=none, 1=server, 2=client
-
-// ===== INIT LOBBY =====
-
-void initLobby() {
-    init_game(&gameState, 2, 0);  // 2 joueurs, ce PC = joueur 0
-}
+int networkConnected = 0;
+char serverIP[50] = "192.168.1.1";  // Adresse IP du serveur - ADAPTER SELON VOTRE RÉSEAU
 
 // ===== INIT GAME =====
 
@@ -76,23 +72,23 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
         // ===== TOUCHES =====
         case WM_KEYDOWN:
 
-            // LOBBY - Appuyer ENTRÉE pour lancer le jeu
+            // LOBBY - Essayer de se connecter et lancer le jeu
             if (!gameStarted && wParam == VK_RETURN) {
-                gameStarted = 1;
-                initGame();
-                // Initialiser le réseau en serveur
-                networkMode = 1;
-                init_network(NETWORK_SERVER, NULL, 5555);
-                InvalidateRect(hwnd, NULL, TRUE);
+                if (init_network(NETWORK_CLIENT, serverIP, 5555)) {
+                    gameStarted = 1;
+                    initGame();
+                    networkConnected = 1;
+                    InvalidateRect(hwnd, NULL, TRUE);
+                }
             }
 
             // JEU : joueur local (ZQSD)
             if (gameStarted) {
                 switch (wParam) {
-                    case 'Z': gameState.players[0].y -= 10; break;
-                    case 'S': gameState.players[0].y += 10; break;
-                    case 'Q': gameState.players[0].x -= 10; break;
-                    case 'D': gameState.players[0].x += 10; break;
+                    case 'Z': gameState.players[1].y -= 10; break;
+                    case 'S': gameState.players[1].y += 10; break;
+                    case 'Q': gameState.players[1].x -= 10; break;
+                    case 'D': gameState.players[1].x += 10; break;
                 }
                 InvalidateRect(hwnd, NULL, TRUE);
             }
@@ -104,7 +100,7 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
             if (gameStarted) {
 
                 // Synchroniser réseau
-                if (networkMode) {
+                if (networkConnected) {
                     network_poll(NULL, &gameState, 0, 0, 0, 0, 0);
                 }
 
@@ -215,17 +211,21 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
             FillRect(hdc, &ps.rcPaint, fond);
             DeleteObject(fond);
 
-            TextOut(hdc, 20, 20, "=== LOBBY ===", 13);
-            TextOut(hdc, 20, 60, "Joueur 1 (vous) : Prêt", 22);
-            TextOut(hdc, 20, 90, "Joueur 2 (en attente de connexion...)", 36);
-            TextOut(hdc, 20, 200, "[ENTRÉE] : Lancer la partie (serveur)", 36);
+            TextOut(hdc, 20, 20, "=== LOBBY (CLIENT) ===", 22);
+            TextOut(hdc, 20, 60, "Joueur 2 (vous) : Prêt à se connecter", 37);
+            
+            char ipMsg[100];
+            sprintf(ipMsg, "Serveur: %s:5555", serverIP);
+            TextOut(hdc, 20, 90, ipMsg, strlen(ipMsg));
+            
+            TextOut(hdc, 20, 200, "[ENTRÉE] : Se connecter et lancer la partie", 42);
 
             EndPaint(hwnd, &ps);
         }
         return 0;
 
         case WM_DESTROY:
-            if (networkMode) shutdown_network();
+            shutdown_network();
             PostQuitMessage(0);
             return 0;
     }
@@ -238,7 +238,7 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
                    LPSTR lpCmdLine, int nCmdShow) {
 
-    const char CLASS_NAME[] = "MaFenetreGDI";
+    const char CLASS_NAME[] = "MaFenetreClientGDI";
 
     WNDCLASS wc = {0};
     wc.lpfnWndProc = WindowProc;
@@ -247,12 +247,12 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
 
     RegisterClass(&wc);
 
-    initLobby();
+    init_game(&gameState, 2, 1);  // 2 joueurs, ce PC = joueur 1
 
     HWND hwnd = CreateWindowEx(
         0,
         CLASS_NAME,
-        "Jeu Serpent Multidirectionnel",
+        "Jeu Serpent - CLIENT",
         WS_OVERLAPPEDWINDOW,
         CW_USEDEFAULT, CW_USEDEFAULT, 800, 600,
         NULL, NULL, hInstance, NULL
