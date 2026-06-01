@@ -1,6 +1,7 @@
 #include "network.h"
 #include <winsock2.h>
 #include <stdio.h>
+#include <string.h>
 
 static int role;
 static SOCKET listenSocket = INVALID_SOCKET;
@@ -106,21 +107,27 @@ void network_poll(bool *quit, GameState *g, bool up, bool down, bool left, bool 
         for (int i = 1; i < g->player_count; i++) {
             if (clientSockets[i] == INVALID_SOCKET) continue;
 
-            // Envoyer tous les joueurs
+            // Envoyer en UN SEUL paquet : tous les joueurs + serpent
+            char buffer[sizeof(Player) * 3 + sizeof(Snake)] = {0};
+            int offset = 0;
+            
+            // Copier tous les joueurs
             for (int j = 0; j < g->player_count; j++) {
-                send(clientSockets[i], (char*)&g->players[j], sizeof(Player), 0);
+                memcpy(buffer + offset, &g->players[j], sizeof(Player));
+                offset += sizeof(Player);
             }
+            
+            // Copier le serpent
+            memcpy(buffer + offset, &g->snake, sizeof(Snake));
+            offset += sizeof(Snake);
+            
+            send(clientSockets[i], buffer, offset, 0);
 
-            // Envoyer le serpent (synchronisé du serveur vers les clients)
-            send(clientSockets[i], (char*)&g->snake, sizeof(Snake), 0);
-
-            // Recevoir du client i (joueur i)
-            int recvBytes = recv(clientSockets[i], (char*)&g->players[i], sizeof(Player), 0);
-            if (recvBytes == SOCKET_ERROR) {
-                int err = WSAGetLastError();
-                if (err != WSAEWOULDBLOCK) {
-                    printf("Erreur recv client %d: %d\n", i, err);
-                }
+            // Recevoir la position du client i
+            char recvBuffer[sizeof(Player)] = {0};
+            int recvBytes = recv(clientSockets[i], recvBuffer, sizeof(Player), 0);
+            if (recvBytes == sizeof(Player)) {
+                memcpy(&g->players[i], recvBuffer, sizeof(Player));
             }
         }
     }
@@ -131,24 +138,22 @@ void network_poll(bool *quit, GameState *g, bool up, bool down, bool left, bool 
         // Envoyer sa position
         send(clientSockets[0], (char*)&g->players[g->local_id], sizeof(Player), 0);
 
-        // Recevoir l'état de tous les joueurs
-        for (int i = 0; i < g->player_count; i++) {
-            int recvBytes = recv(clientSockets[0], (char*)&g->players[i], sizeof(Player), 0);
-            if (recvBytes == SOCKET_ERROR) {
-                int err = WSAGetLastError();
-                if (err != WSAEWOULDBLOCK) {
-                    printf("Erreur recv joueur: %d\n", err);
-                }
+        // Recevoir EN UN SEUL paquet : tous les joueurs + serpent
+        char buffer[sizeof(Player) * 3 + sizeof(Snake)] = {0};
+        int totalSize = sizeof(Player) * g->player_count + sizeof(Snake);
+        int recvBytes = recv(clientSockets[0], buffer, totalSize, 0);
+        
+        if (recvBytes == totalSize) {
+            int offset = 0;
+            
+            // Décoder les joueurs
+            for (int j = 0; j < g->player_count; j++) {
+                memcpy(&g->players[j], buffer + offset, sizeof(Player));
+                offset += sizeof(Player);
             }
-        }
-
-        // Recevoir le serpent synchronisé du serveur
-        int recvBytes = recv(clientSockets[0], (char*)&g->snake, sizeof(Snake), 0);
-        if (recvBytes == SOCKET_ERROR) {
-            int err = WSAGetLastError();
-            if (err != WSAEWOULDBLOCK) {
-                printf("Erreur recv serpent: %d\n", err);
-            }
+            
+            // Décoder le serpent
+            memcpy(&g->snake, buffer + offset, sizeof(Snake));
         }
     }
 }
