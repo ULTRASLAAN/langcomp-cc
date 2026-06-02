@@ -1,24 +1,23 @@
 @echo off
-REM ===== SERVEUR JEU MULTIJOUEUR =====
-REM Lance le serveur en attente du client
+REM Lance jeu.exe en mode serveur ou client
 
 cls
 echo.
 echo  ╔════════════════════════════════════════════╗
-echo  ║  SERVEUR - JEU SERPENT MULTIJOUEUR         ║
-echo  ║  En attente de connexion du client...       ║
+echo  ║  JEU SERPENT MULTIJOUEUR                   ║
+echo  ║  Utilisez jeu.exe et choisissez [1],[2],[3]  ║
 echo  ╚════════════════════════════════════════════╝
 echo.
-echo  Votre adresse IP (exemple) : 192.168.1.1
-echo  Port : 5555
-echo.
-echo  Donnez cette IP au client pour qu'il se connecte
-echo.
-echo  Appuyez sur ENTREE dans le jeu pour lancer la partie
-echo.
-echo ═══════════════════════════════════════════════
-echo.
+echo  [1] SERVEUR
 
-jeu_serveur.exe
+echo  [2] CLIENT 2
+
+echo  [3] CLIENT 3
+
+echo.
+echo  Le serveur maître doit être sur 192.168.1.10
+
+echo.
+jeu.exe
 
 pause

@@ -1,37 +1,18 @@
 @echo off
-REM Compilation du jeu en réseau - Serveur et Client
+REM Compilation du jeu réseau dans un seul exécutable
 
-echo ===== COMPILATION SERVEUR =====
-gcc -o jeu_serveur.exe main.c game.c network.c -lws2_32 -I.
+echo ===== COMPILATION JEU =====
+gcc -o jeu.exe main.c game.c network.c -lws2_32 -lgdi32 -I.
 
 if %errorlevel% neq 0 (
-    echo Erreur lors de la compilation du serveur
+    echo Erreur lors de la compilation de jeu.exe
     pause
     exit /b 1
 )
 
-echo Serveur compilé avec succès!
+echo Jeu compilé avec succès!
 echo.
-
-echo ===== COMPILATION CLIENT =====
-gcc -o jeu_client.exe main_client.c game.c network.c -lws2_32 -I.
-
-if %errorlevel% neq 0 (
-    echo Erreur lors de la compilation du client
-    pause
-    exit /b 1
-)
-
-echo Client compilé avec succès!
-echo.
-
-echo ===== COMPILATION TERMINÉE =====
-echo Exécutables créés:
-echo - jeu_serveur.exe (lance sur ce PC)
-echo - jeu_client.exe (lance sur l'autre PC)
-echo.
-
-echo Avant de lancer le client, modifiez l'adresse IP dans main_client.c (variable serverIP)
-echo ou utilisez l'invite de commande: ipconfig /all
+echo Executable créé : jeu.exe
+echo Lancez jeu.exe sur n'importe quel PC puis choisissez [1] serveur, [2] client 2, [3] client 3.
 
 pause

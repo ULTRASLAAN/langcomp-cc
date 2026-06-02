@@ -14,10 +14,13 @@ int gameEnded = 0;  // 0=en cours, 1=terminé
 int gameEndTimer = 0;  // Pour animations
 int networkMode = 0;  // 0=none, 1=server, 2=client
 int totalPlayers = 3;
+char serverIP[50] = "192.168.1.10";  // Adresse IP du serveur maître
 // ===== INIT LOBBY =====
 
 void initLobby() {
     init_game(&gameState, 3, 0);  // 3 joueurs, défaut = joueur 0
+    gameState.player_count = 3;
+    gameState.local_id = 0;
 }
 
 // ===== INIT GAME =====
@@ -71,9 +74,11 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
 
             // Relancer le jeu (F5)
             if (wParam == VK_F5) {
+                if (networkMode) shutdown_network();
                 gameEnded = 0;
                 gameStarted = 0;
                 networkMode = 0;
+                initLobby();
                 InvalidateRect(hwnd, NULL, TRUE);
                 return 0;
             }
@@ -82,22 +87,28 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
             if (!gameStarted && !networkMode) {
                 if (wParam == '1') {
                     // SERVEUR - Jouer à 3 joueurs
-                    networkMode = 1;
                     totalPlayers = 3;
                     gameState.player_count = 3;
                     gameState.local_id = 0;
-                    init_network(NETWORK_SERVER, NULL, 5555, 0);
-                    printf("✓ Mode SERVEUR 3 JOUEURS - En attente de 2 clients...\n");
+                    if (init_network(NETWORK_SERVER, NULL, 5555, 0)) {
+                        networkMode = 1;
+                        printf("✓ Mode SERVEUR 3 JOUEURS - En attente de 2 clients...\n");
+                    } else {
+                        printf("❌ Échec de lancement du serveur\n");
+                    }
                     InvalidateRect(hwnd, NULL, TRUE);
                 }
-                else if (wParam == '2') {
-                    // CLIENT 1 (192.168.1.30)
-                    char serverIP[50] = "192.168.1.10";
-                    networkMode = 2;
-                    gameState.local_id = 1;
-                    gameState.player_count = 3;
-                    printf("✓ Mode CLIENT - Connexion à %s:5555...\n", serverIP);
-                    init_network(NETWORK_CLIENT, serverIP, 5555, gameState.local_id);
+                else if (wParam == '2' || wParam == '3') {
+                    int selectedId = (wParam == '2') ? 1 : 2;
+                    printf("✓ Tentative connexion au serveur %s:5555 en tant que Joueur %d...\n", serverIP, selectedId + 1);
+                    if (init_network(NETWORK_CLIENT, serverIP, 5555, selectedId)) {
+                        networkMode = 2;
+                        gameState.local_id = selectedId;
+                        gameState.player_count = 3;
+                        printf("✓ Mode CLIENT - Connecté comme Joueur %d\n", selectedId + 1);
+                    } else {
+                        printf("❌ Échec de connexion au serveur\n");
+                    }
                     InvalidateRect(hwnd, NULL, TRUE);
                 }
             }
@@ -408,16 +419,19 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
 
                 if (networkMode == 0) {
                     TextOut(hdcBuffer, 200, 200, "[1] SERVEUR", 11);
-                    TextOut(hdcBuffer, 200, 260, "[2] CLIENT", 10);
+                    TextOut(hdcBuffer, 200, 260, "[2] CLIENT 2", 12);
+                    TextOut(hdcBuffer, 200, 320, "[3] CLIENT 3", 12);
                 }
                 else if (networkMode == 1) {
                     TextOut(hdcBuffer, 150, 200, "SERVEUR (192.168.1.10)", 22);
-                    TextOut(hdcBuffer, 200, 300, "En attente du CLIENT...", 22);
+                    TextOut(hdcBuffer, 200, 300, "En attente des CLIENTS...", 24);
                     SetTextColor(hdcBuffer, RGB(100, 255, 200));
                     TextOut(hdcBuffer, 200, 450, "[ENTREE] pour jouer", 18);
                 }
                 else if (networkMode == 2) {
-                    TextOut(hdcBuffer, 150, 200, "CLIENT (192.168.1.30)", 21);
+                    char clientMsg[64];
+                    sprintf(clientMsg, "CLIENT (Joueur %d) - %s", gameState.local_id + 1, serverIP);
+                    TextOut(hdcBuffer, 150, 200, clientMsg, strlen(clientMsg));
                     TextOut(hdcBuffer, 150, 300, "Connecté au serveur!", 20);
                     SetTextColor(hdcBuffer, RGB(100, 255, 200));
                     TextOut(hdcBuffer, 200, 450, "[ENTREE] pour jouer", 18);
