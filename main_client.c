@@ -8,24 +8,13 @@
 
 #define MAX_SEGMENTS 500
 
-// ===== STRUCTURES =====
-
-typedef struct {
-    int x, y;
-} Segment;
-
-typedef struct {
-    Segment body[MAX_SEGMENTS];
-    int length;
-    int dx, dy;
-} Snake;
-
 // ===== VARIABLES =====
 
 GameState gameState;
 Snake snake;
 int gameStarted = 0;
 int networkConnected = 0;
+int clientRole = 1;  // 1 = joueur 2, 2 = joueur 3
 char serverIP[50] = "192.168.1.1";  // Adresse IP du serveur - ADAPTER SELON VOTRE RÉSEAU
 
 // ===== INIT GAME =====
@@ -43,6 +32,11 @@ void initGame() {
     gameState.players[1].y = 300;
     gameState.players[1].hp = 100;
     gameState.players[1].active = true;
+
+    gameState.players[2].x = 300;
+    gameState.players[2].y = 150;
+    gameState.players[2].hp = 100;
+    gameState.players[2].active = true;
 
     // Serpent segmenté
     snake.length = 10;
@@ -72,6 +66,17 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
         // ===== TOUCHES =====
         case WM_KEYDOWN:
 
+            // LOBBY - Choisir le rôle client
+            if (!gameStarted && !networkConnected) {
+                if (wParam == '1' || wParam == '2') {
+                    clientRole = (wParam == '1') ? 1 : 2;
+                    gameState.local_id = clientRole;
+                    gameState.player_count = 3;
+                    InvalidateRect(hwnd, NULL, TRUE);
+                    return 0;
+                }
+            }
+
             // LOBBY - Essayer de se connecter et lancer le jeu
             if (!gameStarted && wParam == VK_RETURN) {
                 if (init_network(NETWORK_CLIENT, serverIP, 5555)) {
@@ -85,10 +90,10 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
             // JEU : joueur local (ZQSD)
             if (gameStarted) {
                 switch (wParam) {
-                    case 'Z': gameState.players[1].y -= 10; break;
-                    case 'S': gameState.players[1].y += 10; break;
-                    case 'Q': gameState.players[1].x -= 10; break;
-                    case 'D': gameState.players[1].x += 10; break;
+                    case 'Z': gameState.players[gameState.local_id].y -= 10; break;
+                    case 'S': gameState.players[gameState.local_id].y += 10; break;
+                    case 'Q': gameState.players[gameState.local_id].x -= 10; break;
+                    case 'D': gameState.players[gameState.local_id].x += 10; break;
                 }
                 InvalidateRect(hwnd, NULL, TRUE);
             }
@@ -247,7 +252,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
 
     RegisterClass(&wc);
 
-    init_game(&gameState, 2, 1);  // 2 joueurs, ce PC = joueur 1
+    init_game(&gameState, 3, 1);  // 3 joueurs, ce PC = joueur 2 par défaut
 
     HWND hwnd = CreateWindowEx(
         0,

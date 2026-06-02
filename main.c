@@ -13,7 +13,7 @@ int gameStarted = 0;
 int gameEnded = 0;  // 0=en cours, 1=terminé
 int gameEndTimer = 0;  // Pour animations
 int networkMode = 0;  // 0=none, 1=server, 2=client
-int totalPlayers = 2;
+int totalPlayers = 3;
 // ===== INIT LOBBY =====
 
 void initLobby() {
@@ -35,6 +35,11 @@ void initGame() {
     gameState.players[1].y = 300;
     gameState.players[1].hp = 100;
     gameState.players[1].active = true;
+
+    gameState.players[2].x = 300;
+    gameState.players[2].y = 150;
+    gameState.players[2].hp = 100;
+    gameState.players[2].active = true;
 
     // Serpent segmenté
     gameState.snake.length = 10;
@@ -76,13 +81,13 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
             // LOBBY - Touches pour choisir serveur/client
             if (!gameStarted && !networkMode) {
                 if (wParam == '1') {
-                    // SERVEUR - Jouer à 2 joueurs
+                    // SERVEUR - Jouer à 3 joueurs
                     networkMode = 1;
-                    totalPlayers = 2;
-                    gameState.player_count = 2;
+                    totalPlayers = 3;
+                    gameState.player_count = 3;
                     gameState.local_id = 0;
                     init_network(NETWORK_SERVER, NULL, 5555);
-                    printf("✓ Mode SERVEUR 2 JOUEURS - En attente d'1 client...\n");
+                    printf("✓ Mode SERVEUR 3 JOUEURS - En attente de 2 clients...\n");
                     InvalidateRect(hwnd, NULL, TRUE);
                 }
                 else if (wParam == '2') {
@@ -90,7 +95,7 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
                     char serverIP[50] = "192.168.1.10";
                     networkMode = 2;
                     gameState.local_id = 1;
-                    gameState.player_count = 2;
+                    gameState.player_count = 3;
                     printf("✓ Mode CLIENT - Connexion à %s:5555...\n", serverIP);
                     init_network(NETWORK_CLIENT, serverIP, 5555);
                     InvalidateRect(hwnd, NULL, TRUE);
