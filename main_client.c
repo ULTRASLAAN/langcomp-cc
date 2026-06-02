@@ -79,8 +79,7 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
 
             // LOBBY - Essayer de se connecter et lancer le jeu
             if (!gameStarted && wParam == VK_RETURN) {
-                if (init_network(NETWORK_CLIENT, serverIP, 5555)) {
-                    gameStarted = 1;
+                    if (init_network(NETWORK_CLIENT, serverIP, 5555, gameState.local_id)) {
                     initGame();
                     networkConnected = 1;
                     InvalidateRect(hwnd, NULL, TRUE);

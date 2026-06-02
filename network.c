@@ -8,6 +8,10 @@ static SOCKET listenSocket = INVALID_SOCKET;
 static SOCKET clientSockets[3] = {INVALID_SOCKET, INVALID_SOCKET, INVALID_SOCKET};
 static int connectedClients = 0;
 
+static bool is_socket_used(int id) {
+    return id >= 1 && id < 3 && clientSockets[id] != INVALID_SOCKET;
+}
+
 static int send_all(SOCKET s, const char *data, int len) {
     int totalSent = 0;
     while (totalSent < len) {
@@ -42,7 +46,7 @@ static int recv_all(SOCKET s, char *data, int len) {
     return totalRecv;
 }
 
-bool init_network(int r, const char *host, int port) {
+bool init_network(int r, const char *host, int port, int local_id) {
     role = r;
 
     WSADATA w;
@@ -102,6 +106,9 @@ bool init_network(int r, const char *host, int port) {
 
         clientSockets[0] = clientSocket;
         printf("Connecté au serveur %s:%d\n", host, port);
+
+        // Envoyer l'ID de joueur demandé au serveur
+        send_all(clientSocket, (char*)&local_id, sizeof(local_id));
     }
 
     return true;
@@ -118,9 +125,32 @@ void network_poll(bool *quit, GameState *g, bool up, bool down, bool left, bool 
         int expectedClients = g->player_count - 1;
 
         if (clientSocket != INVALID_SOCKET && connectedClients < expectedClients) {
-            clientSockets[1 + connectedClients] = clientSocket;
-            connectedClients++;
-            printf("Client connecté! (%d/%d)\n", connectedClients, expectedClients);
+            int requestedId = 0;
+            int recvBytes = recv_all(clientSocket, (char*)&requestedId, sizeof(requestedId));
+            if (recvBytes == sizeof(requestedId) && requestedId >= 1 && requestedId < g->player_count && !is_socket_used(requestedId)) {
+                clientSockets[requestedId] = clientSocket;
+                printf("Client connecté en tant que Joueur %d!\n", requestedId + 1);
+            } else {
+                int assignedId = 0;
+                for (int i = 1; i < g->player_count; i++) {
+                    if (!is_socket_used(i)) {
+                        assignedId = i;
+                        break;
+                    }
+                }
+                if (assignedId != 0) {
+                    clientSockets[assignedId] = clientSocket;
+                    printf("Client connecté sans rôle demandé, assigné Joueur %d.\n", assignedId + 1);
+                } else {
+                    printf("Client connecté mais aucun rôle disponible.\n");
+                    closesocket(clientSocket);
+                    clientSocket = INVALID_SOCKET;
+                }
+            }
+            if (clientSocket != INVALID_SOCKET) {
+                connectedClients++;
+                printf("Client connecté! (%d/%d)\n", connectedClients, expectedClients);
+            }
         }
     }
 

@@ -86,7 +86,7 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
                     totalPlayers = 3;
                     gameState.player_count = 3;
                     gameState.local_id = 0;
-                    init_network(NETWORK_SERVER, NULL, 5555);
+                    init_network(NETWORK_SERVER, NULL, 5555, 0);
                     printf("✓ Mode SERVEUR 3 JOUEURS - En attente de 2 clients...\n");
                     InvalidateRect(hwnd, NULL, TRUE);
                 }
@@ -97,7 +97,7 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
                     gameState.local_id = 1;
                     gameState.player_count = 3;
                     printf("✓ Mode CLIENT - Connexion à %s:5555...\n", serverIP);
-                    init_network(NETWORK_CLIENT, serverIP, 5555);
+                    init_network(NETWORK_CLIENT, serverIP, 5555, gameState.local_id);
                     InvalidateRect(hwnd, NULL, TRUE);
                 }
             }
