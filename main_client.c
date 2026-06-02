@@ -79,8 +79,15 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
 
             // LOBBY - Essayer de se connecter et lancer le jeu
             if (!gameStarted && wParam == VK_RETURN) {
-                    if (init_network(NETWORK_CLIENT, serverIP, 5555, gameState.local_id)) {
+                if (init_network(NETWORK_CLIENT, serverIP, 5555, gameState.local_id)) {
+                    // Récupérer l'ID assigné par le serveur et l'utiliser
+                    extern int network_get_assigned_id();
+                    int assigned = network_get_assigned_id();
+                    if (assigned >= 0) {
+                        gameState.local_id = assigned;
+                    }
                     initGame();
+                    gameStarted = 1;
                     networkConnected = 1;
                     InvalidateRect(hwnd, NULL, TRUE);
                 }
@@ -137,16 +144,18 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
                     snake.dy = dirs[r][1];
                 }
 
-                // Collision serpent → joueurs
+                // Collision serpent → joueurs (tous les segments rendent mortel)
                 for (int p = 0; p < gameState.player_count; p++) {
                     if (!gameState.players[p].active) continue;
 
-                    int dx = gameState.players[p].x - snake.body[0].x;
-                    int dy = gameState.players[p].y - snake.body[0].y;
-                    int dist2 = dx*dx + dy*dy;
-
-                    if (dist2 < 20*20) {
-                        gameState.players[p].active = false;
+                    for (int s = 0; s < snake.length; s++) {
+                        int dx = gameState.players[p].x - snake.body[s].x;
+                        int dy = gameState.players[p].y - snake.body[s].y;
+                        int dist2 = dx*dx + dy*dy;
+                        if (dist2 < 20*20) {
+                            gameState.players[p].active = false;
+                            break;
+                        }
                     }
                 }
 

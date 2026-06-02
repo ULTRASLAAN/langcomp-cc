@@ -175,16 +175,18 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
                     }
                 }
 
-                // Collision serpent → joueurs
+                // Collision serpent → joueurs (tous les segments rendent mortel)
                 for (int p = 0; p < gameState.player_count; p++) {
                     if (!gameState.players[p].active) continue;
 
-                    int dx = gameState.players[p].x - gameState.snake.body[0].x;
-                    int dy = gameState.players[p].y - gameState.snake.body[0].y;
-                    int dist2 = dx*dx + dy*dy;
-
-                    if (dist2 < 20*20) {
-                        gameState.players[p].active = false;
+                    for (int s = 0; s < gameState.snake.length; s++) {
+                        int dx = gameState.players[p].x - gameState.snake.body[s].x;
+                        int dy = gameState.players[p].y - gameState.snake.body[s].y;
+                        int dist2 = dx*dx + dy*dy;
+                        if (dist2 < 20*20) {
+                            gameState.players[p].active = false;
+                            break; // pas besoin de tester les autres segments
+                        }
                     }
                 }
 

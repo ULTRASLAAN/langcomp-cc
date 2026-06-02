@@ -46,6 +46,13 @@ static int recv_all(SOCKET s, char *data, int len) {
     return totalRecv;
 }
 
+// ID assigned to this client after handshake (client-side use)
+static int network_assigned_id = -1;
+
+int network_get_assigned_id() {
+    return network_assigned_id;
+}
+
 bool init_network(int r, const char *host, int port, int local_id) {
     role = r;
 
@@ -107,8 +114,20 @@ bool init_network(int r, const char *host, int port, int local_id) {
         clientSockets[0] = clientSocket;
         printf("Connecté au serveur %s:%d\n", host, port);
 
-        // Envoyer l'ID de joueur demandé au serveur
-        send_all(clientSocket, (char*)&local_id, sizeof(local_id));
+        // Envoyer l'ID demandé (le client envoie un int: requestedId)
+        int requestedId = local_id; // local_id passed into init_network
+        send_all(clientSocket, (char*)&requestedId, sizeof(requestedId));
+
+        // Recevoir l'ID assigné par le serveur
+        int assignedId = -1;
+        int recvBytes = recv_all(clientSocket, (char*)&assignedId, sizeof(assignedId));
+        if (recvBytes == sizeof(assignedId)) {
+            network_assigned_id = assignedId;
+            printf("Recu ID assigné du serveur: %d\n", assignedId);
+        } else {
+            network_assigned_id = -1;
+            printf("Aucun ID assigné reçu du serveur\n");
+        }
     }
 
     return true;
@@ -127,11 +146,12 @@ void network_poll(bool *quit, GameState *g, bool up, bool down, bool left, bool 
         if (clientSocket != INVALID_SOCKET && connectedClients < expectedClients) {
             int requestedId = 0;
             int recvBytes = recv_all(clientSocket, (char*)&requestedId, sizeof(requestedId));
+            int assignedId = 0;
             if (recvBytes == sizeof(requestedId) && requestedId >= 1 && requestedId < g->player_count && !is_socket_used(requestedId)) {
-                clientSockets[requestedId] = clientSocket;
-                printf("Client connecté en tant que Joueur %d!\n", requestedId + 1);
+                assignedId = requestedId;
+                clientSockets[assignedId] = clientSocket;
+                printf("Client connecté en tant que Joueur %d!\n", assignedId + 1);
             } else {
-                int assignedId = 0;
                 for (int i = 1; i < g->player_count; i++) {
                     if (!is_socket_used(i)) {
                         assignedId = i;
@@ -148,6 +168,9 @@ void network_poll(bool *quit, GameState *g, bool up, bool down, bool left, bool 
                 }
             }
             if (clientSocket != INVALID_SOCKET) {
+                // Envoyer l'ID assigné au client afin qu'il sache quel slot utiliser
+                send_all(clientSocket, (char*)&assignedId, sizeof(assignedId));
+
                 connectedClients++;
                 printf("Client connecté! (%d/%d)\n", connectedClients, expectedClients);
             }
