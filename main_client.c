@@ -14,8 +14,8 @@ GameState gameState;
 Snake snake;
 int gameStarted = 0;
 int networkConnected = 0;
-int clientRole = 1;  // 1 = joueur 2, 2 = joueur 3
-char serverIP[50] = "192.168.1.1";  // Adresse IP du serveur - ADAPTER SELON VOTRE RÉSEAU
+int clientRole = 2;  // 1 = joueur 2, 2 = joueur 3
+char serverIP[50] = "192.168.1.10";  // Adresse IP du serveur - ADAPTER SELON VOTRE RÉSEAU
 
 // ===== INIT GAME =====
 
@@ -216,14 +216,20 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
             FillRect(hdc, &ps.rcPaint, fond);
             DeleteObject(fond);
 
+            char roleMsg[100];
+            sprintf(roleMsg, "Joueur %d (vous) : Prêt à se connecter", gameState.local_id + 1);
             TextOut(hdc, 20, 20, "=== LOBBY (CLIENT) ===", 22);
-            TextOut(hdc, 20, 60, "Joueur 2 (vous) : Prêt à se connecter", 37);
-            
+            TextOut(hdc, 20, 60, roleMsg, strlen(roleMsg));
+
+            char instructionMsg[100];
+            sprintf(instructionMsg, "Appuyez sur 1 pour Joueur 2 ou 2 pour Joueur 3 (client 2)");
+            TextOut(hdc, 20, 90, instructionMsg, strlen(instructionMsg));
+
             char ipMsg[100];
             sprintf(ipMsg, "Serveur: %s:5555", serverIP);
-            TextOut(hdc, 20, 90, ipMsg, strlen(ipMsg));
-            
-            TextOut(hdc, 20, 200, "[ENTRÉE] : Se connecter et lancer la partie", 42);
+            TextOut(hdc, 20, 120, ipMsg, strlen(ipMsg));
+
+            TextOut(hdc, 20, 160, "[ENTRÉE] : Se connecter et lancer la partie", 42);
 
             EndPaint(hwnd, &ps);
         }
@@ -252,7 +258,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
 
     RegisterClass(&wc);
 
-    init_game(&gameState, 3, 1);  // 3 joueurs, ce PC = joueur 2 par défaut
+    init_game(&gameState, 3, 2);  // 3 joueurs, ce PC = joueur 3 (client 2) par défaut
 
     HWND hwnd = CreateWindowEx(
         0,
