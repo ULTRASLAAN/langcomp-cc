@@ -8,6 +8,40 @@ static SOCKET listenSocket = INVALID_SOCKET;
 static SOCKET clientSockets[3] = {INVALID_SOCKET, INVALID_SOCKET, INVALID_SOCKET};
 static int connectedClients = 0;
 
+static int send_all(SOCKET s, const char *data, int len) {
+    int totalSent = 0;
+    while (totalSent < len) {
+        int sent = send(s, data + totalSent, len - totalSent, 0);
+        if (sent == SOCKET_ERROR) {
+            return -1;
+        }
+        if (sent == 0) {
+            break;
+        }
+        totalSent += sent;
+    }
+    return totalSent;
+}
+
+static int recv_all(SOCKET s, char *data, int len) {
+    int totalRecv = 0;
+    while (totalRecv < len) {
+        int received = recv(s, data + totalRecv, len - totalRecv, 0);
+        if (received == SOCKET_ERROR) {
+            int err = WSAGetLastError();
+            if (err == WSAEWOULDBLOCK || err == WSAEINPROGRESS) {
+                continue;
+            }
+            return -1;
+        }
+        if (received == 0) {
+            break;
+        }
+        totalRecv += received;
+    }
+    return totalRecv;
+}
+
 bool init_network(int r, const char *host, int port) {
     role = r;
 
@@ -68,10 +102,6 @@ bool init_network(int r, const char *host, int port) {
 
         clientSockets[0] = clientSocket;
         printf("Connecté au serveur %s:%d\n", host, port);
-
-        // Rendre la socket non-bloquante
-        u_long mode = 1;
-        ioctlsocket(clientSocket, FIONBIO, &mode);
     }
 
     return true;
@@ -91,10 +121,6 @@ void network_poll(bool *quit, GameState *g, bool up, bool down, bool left, bool 
             clientSockets[1 + connectedClients] = clientSocket;
             connectedClients++;
             printf("Client connecté! (%d/%d)\n", connectedClients, expectedClients);
-            
-            // Rendre la socket non-bloquante
-            u_long mode = 1;
-            ioctlsocket(clientSocket, FIONBIO, &mode);
         }
     }
 
@@ -121,11 +147,11 @@ void network_poll(bool *quit, GameState *g, bool up, bool down, bool left, bool 
             memcpy(buffer + offset, &g->snake, sizeof(Snake));
             offset += sizeof(Snake);
             
-            send(clientSockets[i], buffer, offset, 0);
+            send_all(clientSockets[i], buffer, offset);
 
             // Recevoir la position du client i
             char recvBuffer[sizeof(Player)] = {0};
-            int recvBytes = recv(clientSockets[i], recvBuffer, sizeof(Player), 0);
+            int recvBytes = recv_all(clientSockets[i], recvBuffer, sizeof(Player));
             if (recvBytes == sizeof(Player)) {
                 memcpy(&g->players[i], recvBuffer, sizeof(Player));
             }
@@ -136,12 +162,12 @@ void network_poll(bool *quit, GameState *g, bool up, bool down, bool left, bool 
         if (clientSockets[0] == INVALID_SOCKET) return;
 
         // Envoyer sa position
-        send(clientSockets[0], (char*)&g->players[g->local_id], sizeof(Player), 0);
+        send_all(clientSockets[0], (char*)&g->players[g->local_id], sizeof(Player));
 
         // Recevoir EN UN SEUL paquet : tous les joueurs + serpent
         char buffer[sizeof(Player) * 3 + sizeof(Snake)] = {0};
         int totalSize = sizeof(Player) * g->player_count + sizeof(Snake);
-        int recvBytes = recv(clientSockets[0], buffer, totalSize, 0);
+        int recvBytes = recv_all(clientSockets[0], buffer, totalSize);
         
         if (recvBytes == totalSize) {
             int offset = 0;
