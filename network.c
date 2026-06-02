@@ -227,3 +227,8 @@ void shutdown_network() {
     }
     WSACleanup();
 }
+
+// Retourne le nombre actuel de clients connectés (utile pour l'affichage du lobby)
+int network_get_connected_clients() {
+    return connectedClients;
+}

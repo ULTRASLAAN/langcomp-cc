@@ -304,38 +304,68 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
 
                 // Joueurs avec effets modernes
                 for (int i = 0; i < gameState.player_count; i++) {
-                    if (gameState.players[i].active) {
-                        // Aura de couleur
-                        HBRUSH auraColor = CreateSolidBrush(RGB(0, 150, 200));
-                        SelectObject(hdcBuffer, auraColor);
-                        Ellipse(hdcBuffer,
-                            gameState.players[i].x - 18, gameState.players[i].y - 18,
-                            gameState.players[i].x + 18, gameState.players[i].y + 18
-                        );
+                    if (!gameState.players[i].active) continue;
 
-                        // Corps du joueur
-                        int r = (i == 0) ? 50 : 255;
-                        int g = 220;
-                        int b = (i == 0) ? 255 : 50;
-                        HBRUSH pBrush = CreateSolidBrush(RGB(r, g, b));
-                        SelectObject(hdcBuffer, pBrush);
-                        Ellipse(hdcBuffer,
-                            gameState.players[i].x - 12, gameState.players[i].y - 12,
-                            gameState.players[i].x + 12, gameState.players[i].y + 12
-                        );
+                    // Aura
+                    HBRUSH auraColor = CreateSolidBrush((i == gameState.local_id) ? RGB(40,180,255) : RGB(0,120,180));
+                    SelectObject(hdcBuffer, auraColor);
+                    Ellipse(hdcBuffer,
+                        gameState.players[i].x - 20, gameState.players[i].y - 20,
+                        gameState.players[i].x + 20, gameState.players[i].y + 20
+                    );
 
-                        // Bordure brillante
-                        HPEN pPen = CreatePen(PS_SOLID, 2, RGB(255, 255, 255));
-                        SelectObject(hdcBuffer, pPen);
-                        Ellipse(hdcBuffer,
-                            gameState.players[i].x - 12, gameState.players[i].y - 12,
-                            gameState.players[i].x + 12, gameState.players[i].y + 12
-                        );
+                    // Corps du joueur
+                    int pr = (i == 0) ? 80 : 220;
+                    int pg = (i == gameState.local_id) ? 255 : 200;
+                    int pb = (i == 0) ? 220 : 80;
+                    HBRUSH pBrush = CreateSolidBrush(RGB(pr, pg, pb));
+                    SelectObject(hdcBuffer, pBrush);
+                    Ellipse(hdcBuffer,
+                        gameState.players[i].x - 12, gameState.players[i].y - 12,
+                        gameState.players[i].x + 12, gameState.players[i].y + 12
+                    );
 
-                        DeleteObject(auraColor);
-                        DeleteObject(pBrush);
-                        DeleteObject(pPen);
-                    }
+                    // Bordure (plus épaisse pour le joueur local)
+                    HPEN pPen = CreatePen(PS_SOLID, (i == gameState.local_id) ? 4 : 2, RGB(255, 255, 255));
+                    SelectObject(hdcBuffer, pPen);
+                    Ellipse(hdcBuffer,
+                        gameState.players[i].x - 12, gameState.players[i].y - 12,
+                        gameState.players[i].x + 12, gameState.players[i].y + 12
+                    );
+
+                    // Nom / étiquette
+                    char label[32];
+                    sprintf(label, "J%d", i+1);
+                    HFONT lblFont = CreateFont(14, 0, 0, 0, FW_BOLD, 0, 0, 0,
+                                               DEFAULT_CHARSET, OUT_DEFAULT_PRECIS,
+                                               CLIP_DEFAULT_PRECIS, PROOF_QUALITY,
+                                               DEFAULT_PITCH | FF_DONTCARE, "Arial");
+                    SelectObject(hdcBuffer, lblFont);
+                    SetTextColor(hdcBuffer, RGB(255,255,255));
+                    SetBkMode(hdcBuffer, TRANSPARENT);
+                    TextOut(hdcBuffer, gameState.players[i].x - 8, gameState.players[i].y - 32, label, strlen(label));
+                    DeleteObject(lblFont);
+
+                    // Barre de vie
+                    int hp = gameState.players[i].hp;
+                    int barW = 36;
+                    int filled = (hp * barW) / 100;
+                    // fond
+                    HBRUSH barBg = CreateSolidBrush(RGB(40, 40, 40));
+                    SelectObject(hdcBuffer, barBg);
+                    Rectangle(hdcBuffer, gameState.players[i].x - barW/2, gameState.players[i].y - 45,
+                              gameState.players[i].x + barW/2, gameState.players[i].y - 38);
+                    // remplissage
+                    HBRUSH barFill = CreateSolidBrush(RGB(80, 220, 100));
+                    SelectObject(hdcBuffer, barFill);
+                    Rectangle(hdcBuffer, gameState.players[i].x - barW/2, gameState.players[i].y - 45,
+                              gameState.players[i].x - barW/2 + filled, gameState.players[i].y - 38);
+
+                    DeleteObject(auraColor);
+                    DeleteObject(pBrush);
+                    DeleteObject(pPen);
+                    DeleteObject(barBg);
+                    DeleteObject(barFill);
                 }
 
                 // Serpent avec dégradé moderne
@@ -423,16 +453,19 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
                     TextOut(hdcBuffer, 200, 320, "[3] CLIENT 3", 12);
                 }
                 else if (networkMode == 1) {
-                    TextOut(hdcBuffer, 150, 200, "SERVEUR (192.168.1.10)", 22);
+                    int connected = network_get_connected_clients();
+                    char srvMsg[64];
+                    sprintf(srvMsg, "SERVEUR (192.168.1.10) - Clients: %d/%d", connected, gameState.player_count - 1);
+                    TextOut(hdcBuffer, 120, 200, srvMsg, strlen(srvMsg));
                     TextOut(hdcBuffer, 200, 300, "En attente des CLIENTS...", 24);
                     SetTextColor(hdcBuffer, RGB(100, 255, 200));
                     TextOut(hdcBuffer, 200, 450, "[ENTREE] pour jouer", 18);
                 }
                 else if (networkMode == 2) {
                     char clientMsg[64];
-                    sprintf(clientMsg, "CLIENT (Joueur %d) - %s", gameState.local_id + 1, serverIP);
-                    TextOut(hdcBuffer, 150, 200, clientMsg, strlen(clientMsg));
-                    TextOut(hdcBuffer, 150, 300, "Connecté au serveur!", 20);
+                    sprintf(clientMsg, "CLIENT (Joueur %d) - Serveur: %s", gameState.local_id + 1, serverIP);
+                    TextOut(hdcBuffer, 120, 200, clientMsg, strlen(clientMsg));
+                    TextOut(hdcBuffer, 120, 240, "Statut: Connecté au serveur", 27);
                     SetTextColor(hdcBuffer, RGB(100, 255, 200));
                     TextOut(hdcBuffer, 200, 450, "[ENTREE] pour jouer", 18);
                 }
